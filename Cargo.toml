@@ -23,3 +23,6 @@ features = [
 	"Win32_UI_WindowsAndMessaging",
 	"Win32_System_Console",
 ]
+
+[build-dependencies]
+embed-resource = "2.4.0"
