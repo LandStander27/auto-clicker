@@ -35,6 +35,7 @@ struct App {
 	position: Vec<i32>,
 	waiting_for_click: bool,
 	debug_mode: bool,
+	position_set_time: Option<std::time::Instant>,
 }
 
 impl Default for App {
@@ -49,6 +50,7 @@ impl Default for App {
 			position: vec![0, 0],
 			waiting_for_click: false,
 			debug_mode: false,
+			position_set_time: None,
 		}
 	}
 }
@@ -137,10 +139,20 @@ impl eframe::App for App {
 					ui.allocate_ui_at_rect(right, |ui| {
 						ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
 							// ui.add_space(seperation*0.5);
-							if ui.add_enabled(self.follow_mouse == RadioEnum::Position, egui::Button::new("Set position")).clicked() {
-								self.waiting_for_click = true;
-								println!("waiting for next click");
+							if self.position_set_time.is_none() {
+								if ui.add_enabled(self.follow_mouse == RadioEnum::Position, egui::Button::new("Set position")).clicked() {
+									self.waiting_for_click = true;
+									println!("waiting for next click");
+								}
+							} else if self.position_set_time.unwrap().elapsed().as_secs_f32() < 1.5 {
+								ui.add_enabled(self.follow_mouse == RadioEnum::Position, egui::Button::new("Position set!"));
+							} else {
+								if ui.add_enabled(self.follow_mouse == RadioEnum::Position, egui::Button::new("Set position")).clicked() {
+									self.waiting_for_click = true;
+									println!("waiting for next click");
+								}
 							}
+
 							ui.radio_value(&mut self.follow_mouse, RadioEnum::Position, "Position: ");
 							ui.radio_value(&mut self.follow_mouse, RadioEnum::Follow, "Follow mouse");
 
@@ -190,7 +202,7 @@ impl eframe::App for App {
 						valign: egui::Align::Center,
 						..Default::default()
 					});
-	
+
 					ui.allocate_ui_at_rect(right, |ui| {
 						ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
 							ui.add_space(seperation*0.5);
@@ -203,10 +215,21 @@ impl eframe::App for App {
 				});
 
 				if self.debug_mode {
-					if ui.button("Toggle console (debug)").clicked() {
-						toggle_console(!self.console_visible);
-						self.console_visible = !self.console_visible;
-					}
+
+					let mut centered = egui::text::LayoutJob::default();
+					let font_size = 16.0;
+					centered.append("Toggle console (debug)", 0.0, egui::TextFormat {
+						font_id: egui::FontId::new(font_size, egui::FontFamily::Proportional),
+						valign: egui::Align::Center,
+						..Default::default()
+					});
+
+					ui.vertical_centered(|ui| {
+						if ui.add(egui::Button::new(centered).min_size(ui.available_size())).clicked() {
+							toggle_console(!self.console_visible);
+							self.console_visible = !self.console_visible;
+						}
+					});
 				}
 
 			});
@@ -237,12 +260,21 @@ impl eframe::App for App {
 				self.waiting_for_click = false;
 				let (x, y) = MouseCursor::pos();
 				self.position = vec![x, y];
+				self.position_set_time = Some(std::time::Instant::now());
 				println!("position set as {}, {}", x, y);
 			}
 		}
 
 		if ctx.input(|i| i.key_pressed(egui::Key::F10)) {
-			self.debug_mode = true;
+			let mut size = frame.info().window_info.size;
+			if self.debug_mode {
+				self.debug_mode = false;
+				size[1] -= 40.0;
+			} else {
+				self.debug_mode = true;
+				size[1] += 40.0;
+			}
+			frame.set_window_size(size);
 		}
 
 		ctx.request_repaint();
@@ -310,8 +342,8 @@ fn main() {
 		decorated: false,
 		transparent: true,
 		always_on_top: true,
-		min_window_size: Some(egui::vec2(445.0, 360.0)),
-		max_window_size: Some(egui::vec2(445.0, 360.0)),
+		min_window_size: Some(egui::vec2(445.0, 115.0)),
+		max_window_size: Some(egui::vec2(445.0, 115.0)),
 		..Default::default()
 	};
 
