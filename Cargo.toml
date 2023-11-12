@@ -1,7 +1,11 @@
 [package]
 name = "auto_clicker"
+authors = ["Sam Jones"]
 version = "0.1.0"
 edition = "2021"
+description = "An auto clicker"
+license-file = "LICENSE"
+homepage = "https://github.com/LandStander27/auto-clicker/"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
