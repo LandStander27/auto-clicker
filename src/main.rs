@@ -7,10 +7,10 @@ use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE, SW_SHOW};
 
 use std::process::exit;
 
-use eframe::egui;
+use eframe::{egui, emath::Align};
 use rdev::{simulate, EventType, Button};
 use colored::Colorize;
-use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Modifiers, Code}};
+use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Code}};
 
 #[track_caller]
 fn print_error<S: std::fmt::Display>(e: S) {
@@ -61,36 +61,117 @@ impl App {
 impl eframe::App for App {
 	fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
 		egui::CentralPanel::default().show(ctx, |ui| {
-			ui.horizontal_top(|ui| {
-				if ui.text_edit_singleline(&mut self.delay_ms_str).changed() {
-					self.delay_ms_str = self.delay_ms_str.chars().filter(|x| x.to_string().parse::<u128>().is_ok()).collect();
-					if self.delay_ms_str.len() > 0 {
-						self.delay_ms = self.delay_ms_str.parse::<u128>().unwrap_or_else(|e| {
-							print_error(e.to_string());
-							0
-						});
-					} else {
-						self.delay_ms = 0;
-					}
-				}
-				ui.label("ms");
+			// ui.horizontal(|ui| {
+			// 	ui.columns(2, |c| {
+			// 		c[0].horizontal(|ui| {
+			// 			if ui.add(egui::TextEdit::singleline(&mut self.delay_ms_str).hint_text("0")).changed() {
+			// 				self.delay_ms_str = self.delay_ms_str.chars().filter(|x| x.to_string().parse::<u128>().is_ok()).collect();
+			// 				if self.delay_ms_str.len() > 0 {
+			// 					self.delay_ms = self.delay_ms_str.parse::<u128>().unwrap_or_else(|e| {
+			// 						print_error(e.to_string());
+			// 						0
+			// 					});
+			// 				} else {
+			// 					self.delay_ms = 0;
+			// 				}
+			// 			}
+			// 			ui.label("ms");
+			// 		});
+
+			// 	});
+			// });
+
+			ui.vertical(|ui| {
+				let seperation = 24.0;
+				let rect = ui.available_rect_before_wrap();
+				let mut left = rect.clone();
+				left.set_right(222.5);
+				left.set_bottom(rect.top()+10.0);
+				let mut right = rect.clone();
+				right.set_left(222.5);
+				right.set_right(437.0);
+				right.set_bottom(rect.top()+10.0);
+
+				ui.allocate_ui_at_rect(left, |ui| {
+					ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+						ui.add_space(seperation*0.5);
+						ui.label("ms");
+						if ui.add(egui::TextEdit::singleline(&mut self.delay_ms_str).hint_text("0")).changed() {
+							self.delay_ms_str = self.delay_ms_str.chars().filter(|x| x.to_string().parse::<u128>().is_ok()).collect();
+							if self.delay_ms_str.len() > 0 {
+								self.delay_ms = self.delay_ms_str.parse::<u128>().unwrap_or_else(|e| {
+									print_error(e.to_string());
+									0
+								});
+							} else {
+								self.delay_ms = 0;
+							}
+						}
+					});
+				});
+
+				ui.allocate_ui_at_rect(right, |ui| {
+					ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+						ui.add_space(seperation*0.5);
+
+					});
+				});
 			});
 
-			if ui.add_enabled(!self.is_clicking, egui::Button::new("Start")).clicked() {
-				self.is_clicking = true;
-				self.last_click = std::time::Instant::now();
-			}
-			if ui.add_enabled(self.is_clicking, egui::Button::new("Stop")).clicked() {
-				self.is_clicking = false;
-			}
+			ui.separator();
+
+			ui.vertical(|ui| {
+
+				let mut centered = egui::text::LayoutJob::default();
+				let font_size = 16.0;
+				centered.append("Start", 0.0, egui::TextFormat {
+					font_id: egui::FontId::new(font_size, egui::FontFamily::Proportional),
+					valign: egui::Align::Center,
+					..Default::default()
+				});
+
+				let seperation = 24.0;
+				let rect = ui.available_rect_before_wrap();
+				let mut left = rect.clone();
+				left.set_right(222.5);
+				left.set_bottom(rect.top()+50.0);
+				let mut right = rect.clone();
+				right.set_left(222.5);
+				right.set_right(437.0);
+				right.set_bottom(rect.top()+50.0);
+
+				ui.allocate_ui_at_rect(left, |ui| {
+					ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
+						ui.add_space(seperation*0.5);
+						if ui.add_enabled(!self.is_clicking, egui::Button::new(centered.clone()).min_size(ui.available_size()).wrap(true)).clicked() {
+							self.is_clicking = true;
+							self.last_click = std::time::Instant::now();
+						}
+					});
+				});
+
+				centered.sections.clear();
+				centered.append("Stop", 0.0, egui::TextFormat {
+					font_id: egui::FontId::new(font_size, egui::FontFamily::Proportional),
+					valign: egui::Align::Center,
+					..Default::default()
+				});
+
+				ui.allocate_ui_at_rect(right, |ui| {
+					ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+						ui.add_space(seperation*0.5);
+						if ui.add_enabled(self.is_clicking, egui::Button::new(centered).min_size(ui.available_size())).clicked() {
+							self.is_clicking = false;
+						}
+					});
+				});
+
+			});
+
 			if ui.button("Toggle console (debug)").clicked() {
 				toggle_console(!self.console_visible);
 				self.console_visible = !self.console_visible;
 			}
-
-			// if ui.input(|i| i.key_pressed(egui::Key::F6)) {
-			// 	self.is_clicking = !self.is_clicking;
-			// }
 
 		});
 
@@ -149,7 +230,10 @@ fn main() {
 
 	println!("register global hotkey");
 	let manager = GlobalHotKeyManager::new().unwrap();
-	manager.register(HotKey::new(None, Code::F6)).unwrap();
+	manager.register(HotKey::new(None, Code::F6)).unwrap_or_else(|e| {
+		print_error(e.to_string());
+		exit(1);
+	});
 
 	println!("init options");
 	let options = eframe::NativeOptions {
