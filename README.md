@@ -6,5 +6,10 @@
 
 ***
 
-#### Preview:
+#### Building
+1. Clone the repo
+2. `cargo b --release`
+3. Executable will be in `./target/release`
+
+#### Preview
 ![Preview of app](/preview.png)
