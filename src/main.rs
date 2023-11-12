@@ -88,7 +88,7 @@ impl eframe::App for App {
 			// 	});
 			// });
 
-			border::custom_window_frame(ctx, frame, "Auto clicker", |ui| {
+			border::custom_window_frame(ctx, frame, "Auto Clicker", |ui| {
 				ui.vertical(|ui| {
 					let seperation = 24.0;
 					let rect = ui.available_rect_before_wrap();
@@ -99,7 +99,7 @@ impl eframe::App for App {
 					right.set_left(222.5);
 					right.set_right(437.0);
 					right.set_bottom(rect.top()+10.0);
-	
+
 					ui.allocate_ui_at_rect(left, |ui| {
 						ui.with_layout(egui::Layout::right_to_left(Align::Center), |ui| {
 							ui.add_space(seperation*0.5);
