@@ -1,6 +1,6 @@
 use eframe::egui;
 
-pub fn custom_window_frame(ctx: &egui::Context, frame: &mut eframe::Frame, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) {
+pub fn custom_window_frame(ctx: &egui::Context, frame: &mut eframe::Frame, title: &str, add_contents: impl FnOnce(&mut egui::Ui)) -> egui::Rect {
 
 	let panel_frame = egui::Frame {
 		fill: ctx.style().visuals.window_fill(),
@@ -10,6 +10,8 @@ pub fn custom_window_frame(ctx: &egui::Context, frame: &mut eframe::Frame, title
 		..Default::default()
 	};
 
+	let mut left: egui::Rect = egui::Rect::everything_above(0.0);
+
 	egui::CentralPanel::default().frame(panel_frame).show(ctx, |ui| {
 		let app_rect = ui.max_rect();
 
@@ -18,7 +20,7 @@ pub fn custom_window_frame(ctx: &egui::Context, frame: &mut eframe::Frame, title
 		let mut title_bar_rect = app_rect;
 		title_bar_rect.max.y = title_bar_rect.min.y + title_bar_height;
 
-		title_bar_ui(ui, frame, title_bar_rect, title);
+		left = title_bar_ui(ui, frame, title_bar_rect, title);
 
 		let mut content_rect = app_rect;
 		content_rect.min.y = title_bar_rect.max.y;
@@ -28,9 +30,11 @@ pub fn custom_window_frame(ctx: &egui::Context, frame: &mut eframe::Frame, title
 		add_contents(&mut content_ui);
 
 	});
+
+	return left;
 }
 
-fn title_bar_ui(ui: &mut egui::Ui, frame: &mut eframe::Frame, title_bar_rect: eframe::epaint::Rect, title: &str) {
+fn title_bar_ui(ui: &mut egui::Ui, frame: &mut eframe::Frame, title_bar_rect: eframe::epaint::Rect, title: &str) -> egui::Rect {
 	let painter = ui.painter();
 
 	let title_bar_response = ui.interact(title_bar_rect, egui::Id::new("title_bar"), egui::Sense::click());
@@ -53,13 +57,16 @@ fn title_bar_ui(ui: &mut egui::Ui, frame: &mut eframe::Frame, title_bar_rect: ef
 		ui.visuals().widgets.noninteractive.bg_stroke,
 	);
 
-	if title_bar_response.double_clicked() {
-		frame.set_maximized(!frame.info().window_info.maximized);
-	} else if title_bar_response.is_pointer_button_down_on() {
+	if title_bar_response.is_pointer_button_down_on() {
 		frame.drag_window();
 	}
 
-	ui.allocate_ui_at_rect(title_bar_rect, |ui| {
+	let mut right = title_bar_rect.clone();
+	right.set_left(title_bar_rect.center().x);
+	let mut left = title_bar_rect.clone();
+	left.set_right(title_bar_rect.center().x);
+
+	ui.allocate_ui_at_rect(right, |ui| {
 		ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
 			ui.spacing_mut().item_spacing.x = 0.0;
 			ui.visuals_mut().button_frame = false;
@@ -67,6 +74,9 @@ fn title_bar_ui(ui: &mut egui::Ui, frame: &mut eframe::Frame, title_bar_rect: ef
 			close_minimize(ui, frame);
 		});
 	});
+
+	return left;
+
 }
 
 fn close_minimize(ui: &mut egui::Ui, frame: &mut eframe::Frame) {

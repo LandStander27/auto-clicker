@@ -7,9 +7,9 @@ use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE, SW_SHOW};
 
 use std::process::exit;
 
+use device_query::DeviceQuery;
 use eframe::{egui, emath::Align};
 use colored::Colorize;
-use global_hotkey::{GlobalHotKeyManager, GlobalHotKeyEvent, hotkey::{HotKey, Code}};
 use inputbot::{MouseButton::LeftButton, MouseCursor};
 
 mod border;
@@ -36,6 +36,11 @@ struct App {
 	waiting_for_click: bool,
 	debug_mode: bool,
 	position_set_time: Option<std::time::Instant>,
+	click_keybind: device_query::Keycode,
+	settings_window: bool,
+	setting_click_keybind: bool,
+	last_frame: std::time::Instant,
+	click_hotkey_pressed: bool,
 }
 
 impl Default for App {
@@ -51,6 +56,11 @@ impl Default for App {
 			waiting_for_click: false,
 			debug_mode: false,
 			position_set_time: None,
+			click_keybind: device_query::Keycode::F6,
+			settings_window: false,
+			setting_click_keybind: false,
+			last_frame: std::time::Instant::now(),
+			click_hotkey_pressed: false,
 		}
 	}
 }
@@ -86,7 +96,7 @@ impl eframe::App for App {
     }
 
 	fn update(&mut self, ctx: &egui::Context, frame: &mut eframe::Frame) {
-		egui::CentralPanel::default().show(ctx, |_ui| {
+		egui::CentralPanel::default().show(ctx, |ui| {
 			// ui.horizontal(|ui| {
 			// 	ui.columns(2, |c| {
 			// 		c[0].horizontal(|ui| {
@@ -107,7 +117,7 @@ impl eframe::App for App {
 			// 	});
 			// });
 
-			border::custom_window_frame(ctx, frame, "Auto Clicker", |ui| {
+			let border_left = border::custom_window_frame(ctx, frame, "Auto Clicker", |ui| {
 				ui.vertical(|ui| {
 					let rect = ui.available_rect_before_wrap();
 					let mut left = rect.clone();
@@ -170,7 +180,7 @@ impl eframe::App for App {
 	
 					let mut centered = egui::text::LayoutJob::default();
 					let font_size = 16.0;
-					centered.append("Start (F6)", 0.0, egui::TextFormat {
+					centered.append(format!("Start ({})", self.click_keybind.to_string()).as_str(), 0.0, egui::TextFormat {
 						font_id: egui::FontId::new(font_size, egui::FontFamily::Proportional),
 						valign: egui::Align::Center,
 						..Default::default()
@@ -195,9 +205,9 @@ impl eframe::App for App {
 							}
 						});
 					});
-	
+
 					centered.sections.clear();
-					centered.append("Stop (F6)", 0.0, egui::TextFormat {
+					centered.append(format!("Stop ({})", self.click_keybind.to_string()).as_str(), 0.0, egui::TextFormat {
 						font_id: egui::FontId::new(font_size, egui::FontFamily::Proportional),
 						valign: egui::Align::Center,
 						..Default::default()
@@ -234,11 +244,53 @@ impl eframe::App for App {
 
 			});
 
+			ui.allocate_ui_at_rect(border_left, |ui| {
+				ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+					ui.add_space(10.0);
+					ui.visuals_mut().button_frame = false;
+					ui.push_id("settings button", |ui| {
+						if ui.button("Settings").clicked() {
+							self.settings_window = true;
+						}
+					});
+				});
+			});
+
 		});
 
-		if let Ok(o) = GlobalHotKeyEvent::receiver().try_recv() {
-			if o.state == global_hotkey::HotKeyState::Pressed {
-				self.is_clicking = !self.is_clicking;
+		let state = device_query::DeviceState::new();
+		let keys = state.get_keys();
+
+		if !self.settings_window {
+			if keys.contains(&self.click_keybind) {
+				if !self.click_hotkey_pressed {
+					self.click_hotkey_pressed = true;
+					self.is_clicking = !self.is_clicking;
+				}
+			} else {
+				self.click_hotkey_pressed = false;
+			}
+		}
+
+		if self.settings_window {
+			egui::Window::new("Settings").collapsible(false).resizable(false).open(&mut self.settings_window).fixed_size(egui::vec2(220.0, 100.0)).show(ctx, |ui| {
+				ui.columns(2, |c| {
+					c[0].vertical_centered(|ui| {
+						if ui.add(egui::Button::new("Set hotkey").min_size(egui::vec2(100.0, 32.0))).clicked() {
+							self.setting_click_keybind = true;
+						}
+					});
+					c[1].vertical_centered(|ui| {
+						ui.add_enabled(false, egui::Button::new(self.click_keybind.to_string()).min_size(egui::vec2(100.0, 32.0)));
+					});
+				});
+			});
+
+			if self.setting_click_keybind {
+				if let Some(o) = keys.first() {
+					self.click_keybind = *o;
+					self.setting_click_keybind = false;
+				}
 			}
 		}
 
@@ -275,6 +327,11 @@ impl eframe::App for App {
 				size[1] += 40.0;
 			}
 			frame.set_window_size(size);
+		}
+
+		if cfg!(debug_assertions) {
+			println!("frame time: {}s", self.last_frame.elapsed().as_secs_f32());
+			self.last_frame = std::time::Instant::now();
 		}
 
 		ctx.request_repaint();
@@ -319,13 +376,6 @@ fn main() {
 		println!("hiding console");
 		toggle_console(false);
 	}
-
-	println!("register global hotkey");
-	let manager = GlobalHotKeyManager::new().unwrap();
-	manager.register(HotKey::new(None, Code::F6)).unwrap_or_else(|e| {
-		print_error(e.to_string());
-		exit(1);
-	});
 
 	println!("init options");
 	let options = eframe::NativeOptions {
