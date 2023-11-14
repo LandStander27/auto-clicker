@@ -61,6 +61,7 @@ impl Default for App {
 			setting_click_keybind: false,
 			last_frame: std::time::Instant::now(),
 			click_hotkey_pressed: false,
+			
 		}
 	}
 }
@@ -118,6 +119,10 @@ impl eframe::App for App {
 			// });
 
 			let border_left = border::custom_window_frame(ctx, frame, "Auto Clicker", |ui| {
+				if self.settings_window {
+					ui.set_enabled(false);
+				}
+
 				ui.vertical(|ui| {
 					let rect = ui.available_rect_before_wrap();
 					let mut left = rect.clone();
@@ -246,6 +251,9 @@ impl eframe::App for App {
 
 			ui.allocate_ui_at_rect(border_left, |ui| {
 				ui.with_layout(egui::Layout::left_to_right(Align::Center), |ui| {
+					if self.settings_window {
+						ui.set_enabled(false);
+					}
 					ui.add_space(10.0);
 					ui.visuals_mut().button_frame = false;
 					ui.push_id("settings button", |ui| {
@@ -276,12 +284,16 @@ impl eframe::App for App {
 			egui::Window::new("Settings").collapsible(false).resizable(false).open(&mut self.settings_window).fixed_size(egui::vec2(220.0, 100.0)).show(ctx, |ui| {
 				ui.columns(2, |c| {
 					c[0].vertical_centered(|ui| {
-						if ui.add(egui::Button::new("Set hotkey").min_size(egui::vec2(100.0, 32.0))).clicked() {
+						if ui.add_enabled(!self.setting_click_keybind, egui::Button::new("Set hotkey").min_size(egui::vec2(100.0, 32.0))).clicked() {
 							self.setting_click_keybind = true;
 						}
 					});
 					c[1].vertical_centered(|ui| {
-						ui.add_enabled(false, egui::Button::new(self.click_keybind.to_string()).min_size(egui::vec2(100.0, 32.0)));
+						if self.setting_click_keybind {
+							ui.add_enabled(false, egui::Button::new("Press new key").min_size(egui::vec2(100.0, 32.0)));
+						} else {
+							ui.add_enabled(false, egui::Button::new(self.click_keybind.to_string()).min_size(egui::vec2(100.0, 32.0)));
+						}
 					});
 				});
 			});
