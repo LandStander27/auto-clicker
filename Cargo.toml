@@ -1,7 +1,7 @@
 [package]
 name = "auto_clicker"
 authors = ["Sam Jones"]
-version = "0.1.11"
+version = "0.1.12"
 edition = "2021"
 description = "An auto clicker"
 license-file = "LICENSE"

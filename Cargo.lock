@@ -372,7 +372,7 @@ dependencies = [
 
 [[package]]
 name = "auto_clicker"
-version = "0.1.11"
+version = "0.1.12"
 dependencies = [
  "colored",
  "device_query",
