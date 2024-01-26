@@ -3,6 +3,8 @@
 
 #[cfg(target_os = "windows")]
 use windows::Win32::System::Console::{AllocConsole, FreeConsole, GetConsoleWindow};
+
+#[cfg(target_os = "windows")]
 use windows::Win32::UI::WindowsAndMessaging::{ShowWindow, SW_HIDE, SW_SHOW};
 
 use std::process::exit;
@@ -159,12 +161,16 @@ impl eframe::App for App {
 									self.waiting_for_click = true;
 									println!("waiting for next click");
 								}
-							} else if self.position_set_time.unwrap().elapsed().as_secs_f32() < 1.5 {
+							} else if self.position_set_time.unwrap().elapsed().as_secs_f32() < 1.5 && cfg!(windows) {
 								ui.add_enabled(self.follow_mouse == RadioEnum::Position, egui::Button::new("Position set!"));
 							} else {
 								if ui.add_enabled(self.follow_mouse == RadioEnum::Position, egui::Button::new("Set position")).clicked() {
-									self.waiting_for_click = true;
-									println!("waiting for next click");
+									if cfg!(windows) {
+										self.waiting_for_click = true;
+										println!("waiting for next click");
+									} else {
+										println!("unsupported on linux");
+									}
 								}
 							}
 
@@ -315,18 +321,29 @@ impl eframe::App for App {
 			self.last_click = std::time::Instant::now();
 		}
 
-		if self.waiting_for_click {
+		if self.waiting_for_click && cfg!(windows) {
 			egui::Window::new("Info").collapsible(false).resizable(false).show(ctx, |ui| {
 				ui.label("On the next click your cursor position will be saved!");
 			});
 
 			if LeftButton.is_pressed() {
 				self.waiting_for_click = false;
-				let (x, y) = MouseCursor::pos();
-				self.position = vec![x, y];
-				self.position_set_time = Some(std::time::Instant::now());
-				println!("position set as {}, {}", x, y);
+
+				#[cfg(target_os = "windows")]
+				{
+					let (x, y) = MouseCursor::pos();
+
+					self.position = vec![x, y];
+					self.position_set_time = Some(std::time::Instant::now());
+					println!("position set as {}, {}", x, y);
+				}
 			}
+		}
+
+		if self.follow_mouse == RadioEnum::Position {
+			egui::Window::new("Info").collapsible(false).resizable(false).show(ctx, |ui| {
+				ui.label("This feature is unsupported on linux.");
+			});
 		}
 
 		if ctx.input(|i| i.key_pressed(egui::Key::F10)) {
@@ -377,6 +394,7 @@ fn toggle_console(_: bool) {
 
 fn main() {
 
+	#[cfg(target_os = "windows")]
 	if cfg!(windows) && cfg!(not(debug_assertions)) {
 		unsafe {
 			AllocConsole().unwrap_or_else(|e| {
@@ -392,8 +410,9 @@ fn main() {
 	println!("init options");
 	let options = eframe::NativeOptions {
 		initial_window_size: Some(egui::vec2(320.0, 240.0)),
-		icon_data: Some(eframe::IconData::try_from_png_bytes(include_bytes!(".\\..\\icon.png")).unwrap_or_else(|e| {
+		icon_data: Some(eframe::IconData::try_from_png_bytes(include_bytes!("./../icon.png")).unwrap_or_else(|e| {
 			print_error(e.to_string());
+			#[cfg(target_os = "windows")]
 			if cfg!(windows) && cfg!(not(debug_assertions)) {
 				unsafe { FreeConsole().unwrap() };
 			}
