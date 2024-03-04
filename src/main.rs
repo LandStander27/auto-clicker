@@ -340,7 +340,7 @@ impl eframe::App for App {
 			}
 		}
 
-		if self.follow_mouse == RadioEnum::Position {
+		if self.follow_mouse == RadioEnum::Position && cfg!(linux) {
 			egui::Window::new("Info").collapsible(false).resizable(false).show(ctx, |ui| {
 				ui.label("This feature is unsupported on linux.");
 			});
